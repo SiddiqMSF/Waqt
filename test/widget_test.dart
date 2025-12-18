@@ -73,5 +73,57 @@ void main() {
       // Should always have a next marker
       expect(status.nextMarker, isNotNull);
     });
+
+    test(
+      'isInPostIqamahPeriod should return true within 20 mins after iqamah',
+      () {
+        final now = DateTime.now();
+        final markers = service.getMarkersForDate(now);
+
+        // Find a prayer with iqamah
+        final fajr = markers.firstWhere((m) => m.name == 'Fajr');
+        expect(fajr.iqamahTime, isNotNull);
+
+        // Test 5 minutes after iqamah
+        final fiveAfterIqamah = fajr.iqamahTime!.add(
+          const Duration(minutes: 5),
+        );
+        final status = service.getCurrentStatus(fiveAfterIqamah);
+
+        // If we're on the right day and time, should be in post-iqamah period
+        if (status.currentMarker?.name == 'Fajr') {
+          expect(status.isInPostIqamahPeriod, true);
+          expect(status.timeSinceIqamah.inMinutes, 5);
+        }
+      },
+    );
+
+    test('isInPostIqamahPeriod should return false after 20 mins', () {
+      final now = DateTime.now();
+      final markers = service.getMarkersForDate(now);
+
+      // Find a prayer with iqamah
+      final fajr = markers.firstWhere((m) => m.name == 'Fajr');
+      expect(fajr.iqamahTime, isNotNull);
+
+      // Test 25 minutes after iqamah
+      final twentyFiveAfterIqamah = fajr.iqamahTime!.add(
+        const Duration(minutes: 25),
+      );
+      final status = service.getCurrentStatus(twentyFiveAfterIqamah);
+
+      // Should NOT be in post-iqamah period after 20 mins
+      if (status.currentMarker?.name == 'Fajr') {
+        expect(status.isInPostIqamahPeriod, false);
+      }
+    });
+
+    test('isInIqamahPeriod should be exclusive of isInPostIqamahPeriod', () {
+      final now = DateTime.now();
+      final status = service.getCurrentStatus(now);
+
+      // Cannot be in both periods at the same time
+      expect(status.isInIqamahPeriod && status.isInPostIqamahPeriod, false);
+    });
   });
 }

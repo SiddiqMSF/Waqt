@@ -190,4 +190,25 @@ class PrayerStatus {
     }
     return currentMarker!.iqamahTime!.difference(now);
   }
+
+  /// Check if we're in the post-iqamah period (within 20 minutes after iqamah)
+  bool get isInPostIqamahPeriod {
+    if (currentMarker == null || !currentMarker!.isPrayer) return false;
+    if (currentMarker!.iqamahTime == null) return false;
+
+    // Must be after iqamah time
+    if (now.isBefore(currentMarker!.iqamahTime!)) return false;
+
+    // Check if within 20 minutes after iqamah
+    final timeSince = now.difference(currentMarker!.iqamahTime!);
+    return timeSince.inMinutes < 20;
+  }
+
+  /// Time since iqamah (if in post-iqamah period)
+  Duration get timeSinceIqamah {
+    if (!isInPostIqamahPeriod || currentMarker?.iqamahTime == null) {
+      return Duration.zero;
+    }
+    return now.difference(currentMarker!.iqamahTime!);
+  }
 }

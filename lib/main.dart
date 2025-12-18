@@ -4,10 +4,16 @@ import 'package:permission_handler/permission_handler.dart';
 import 'screens/home_screen.dart';
 import 'services/prayer_time_service.dart';
 import 'services/location_service.dart';
-import 'services/notification_service.dart';
+import 'services/background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize background service (only on mobile)
+  if (!kIsWeb) {
+    await initializeBackgroundService();
+  }
+
   runApp(const PrayerTimesApp());
 }
 
@@ -69,14 +75,12 @@ class _PrayerTimesAppState extends State<PrayerTimesApp> {
         longitude: longitude,
       );
 
-      // Initialize notification service (only on mobile)
+      // Start background service (only on mobile)
       if (!kIsWeb) {
         if (mounted) {
-          setState(() => _status = 'Starting notification service...');
+          setState(() => _status = 'Starting background service...');
         }
-        final notificationService = NotificationService(prayerService);
-        await notificationService.initialize();
-        await notificationService.startService();
+        await startBackgroundService();
       }
 
       // Update state to show home screen (no navigation)

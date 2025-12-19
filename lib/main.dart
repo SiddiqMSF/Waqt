@@ -5,6 +5,8 @@ import 'screens/home_screen.dart';
 import 'services/prayer_time_service.dart';
 import 'services/location_service.dart';
 import 'services/background_service.dart';
+import 'services/home_widget_service.dart';
+import 'package:intl/intl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,6 +91,7 @@ class _PrayerTimesAppState extends State<PrayerTimesApp> {
           _prayerService = prayerService;
           _isLoading = false;
         });
+        _updateHomeWidget(prayerService);
       }
     } catch (e) {
       if (mounted) {
@@ -98,6 +101,25 @@ class _PrayerTimesAppState extends State<PrayerTimesApp> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _updateHomeWidget(PrayerTimeService service) async {
+    try {
+      final now = DateTime.now();
+      final status = service.getCurrentStatus(now);
+      final nextPrayer = status.nextMarker;
+
+      if (nextPrayer != null) {
+        final timeStr = DateFormat.jm().format(nextPrayer.time);
+        await HomeWidgetService.updatePrayerData(
+          nextPrayer.name,
+          timeStr,
+          nextPrayer.time.millisecondsSinceEpoch,
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to update home widget: $e');
     }
   }
 

@@ -7,12 +7,15 @@ class PrayerTime extends Equatable {
   final bool isPrayer;
   final Duration? iqamahDelay;
 
+  final String? description;
+
   const PrayerTime({
     required this.name,
     required this.arabicName,
     required this.time,
     required this.isPrayer,
     this.iqamahDelay,
+    this.description,
   });
 
   /// Get iqamah time if applicable
@@ -31,7 +34,14 @@ class PrayerTime extends Equatable {
   bool hasPassed(DateTime now) => now.isAfter(time);
 
   @override
-  List<Object?> get props => [name, arabicName, time, isPrayer, iqamahDelay];
+  List<Object?> get props => [
+    name,
+    arabicName,
+    time,
+    isPrayer,
+    iqamahDelay,
+    description,
+  ];
 }
 
 /// Iqamah delay configuration

@@ -24,6 +24,22 @@ class PrayerRepositoryImpl implements PrayerRepository {
     final oneThird = Duration(microseconds: nightDuration.inMicroseconds ~/ 3);
     final firstThirdEnd = maghribTime.add(oneThird);
 
+    // Calculate manual markers
+    final halfNight = Duration(microseconds: nightDuration.inMicroseconds ~/ 2);
+    final midnightTime = maghribTime.add(halfNight);
+
+    // Last third starts at 2/3 of night (or End of Second Third)
+    final twoThirds = Duration(
+      microseconds: (nightDuration.inMicroseconds * 2) ~/ 3,
+    );
+    final lastThirdTime = maghribTime.add(twoThirds);
+
+    // Calculate Diffs for UI transparency
+    final midnightDiff = sunnahTimes.middleOfTheNight.difference(midnightTime);
+    final lastThirdDiff = sunnahTimes.lastThirdOfTheNight.difference(
+      lastThirdTime,
+    );
+
     return [
       PrayerTime(
         name: 'Fajr',
@@ -75,14 +91,16 @@ class PrayerRepositoryImpl implements PrayerRepository {
       PrayerTime(
         name: 'Midnight',
         arabicName: 'منتصف الليل',
-        time: sunnahTimes.middleOfTheNight,
+        time: midnightTime,
         isPrayer: false,
+        description: 'Diff: ${midnightDiff.inSeconds}s',
       ),
       PrayerTime(
         name: 'Last Third',
         arabicName: 'الثلث الأخير',
-        time: sunnahTimes.lastThirdOfTheNight,
+        time: lastThirdTime,
         isPrayer: false,
+        description: 'Diff: ${lastThirdDiff.inSeconds}s',
       ),
     ];
   }

@@ -3,8 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import '../utils/date_time_utils.dart';
-import 'prayer_time_service.dart';
+import 'package:trying_flutter/core/services/home_widget_service.dart';
+import 'package:trying_flutter/core/utils/date_time_utils.dart';
+import 'package:trying_flutter/features/prayer/data/repositories/prayer_repository_impl.dart';
+import 'package:trying_flutter/features/prayer/domain/entities/prayer_time.dart';
 import 'location_service.dart';
 
 /// Notification channel constants
@@ -87,22 +89,25 @@ void onStart(ServiceInstance service) async {
   final locationService = LocationService();
   final coords = await locationService.getCachedCoordinates();
 
-  // Create prayer service with cached coordinates
-  final prayerService = PrayerTimeService(
-    latitude: coords.latitude,
-    longitude: coords.longitude,
-  );
+  // Use Repository directly
+  final repository = PrayerRepositoryImpl();
 
   // Handle stop command
   service.on('stop').listen((event) {
     service.stopSelf();
   });
 
-  // Update notification every second
+  // Update notification and widget every second
   Timer.periodic(const Duration(seconds: 1), (timer) async {
     if (service is AndroidServiceInstance) {
       if (await service.isForegroundService()) {
-        final notification = _buildNotification(prayerService);
+        // Calculate times fresh every tick (or could cache purely times list)
+        final prayers = await repository.getPrayerTimes(
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        );
+
+        final notification = _buildNotification(prayers, repository);
 
         await flutterLocalNotificationsPlugin.show(
           notificationId,
@@ -126,45 +131,72 @@ void onStart(ServiceInstance service) async {
             ),
           ),
         );
+
+        // Update Home Widget
+        final now = DateTime.now();
+        final nextPrayer = repository.getNextPrayer(prayers, now);
+        if (nextPrayer != null) {
+          final timeStr = DateTimeUtils.formatTime(nextPrayer.time);
+          await HomeWidgetService.updatePrayerData(
+            nextPrayer.name,
+            timeStr,
+            nextPrayer.time.millisecondsSinceEpoch,
+          );
+        }
       }
     }
   });
 }
 
 /// Build notification content based on current prayer status
-_NotificationContent _buildNotification(PrayerTimeService prayerService) {
+_NotificationContent _buildNotification(
+  List<PrayerTime> prayers,
+  PrayerRepositoryImpl repo,
+) {
   final now = DateTime.now();
-  final status = prayerService.getCurrentStatus(now);
+  final nextPrayer = repo.getNextPrayer(prayers, now);
+  // Need to find "current" for iqamah logic.
+  // Let's assume simplest "current" is the last passed prayer.
+  PrayerTime? currentPrayer;
+
+  // Sort and find last passed
+  final sorted = List<PrayerTime>.from(prayers)
+    ..sort((a, b) => a.time.compareTo(b.time));
+  for (final p in sorted) {
+    if (p.time.isBefore(now)) {
+      currentPrayer = p;
+    }
+  }
 
   String title;
   String body;
 
-  if (status.isInIqamahPeriod) {
-    // Show countdown to iqamah
-    final timeToIqamah = status.timeUntilIqamah;
-    title = '🕌 ${status.currentMarker!.name} - Iqamah Soon';
-    body = 'Iqamah in ${DateTimeUtils.formatDuration(timeToIqamah)}';
-  } else if (status.isInPostIqamahPeriod) {
-    // Show elapsed time since iqamah (up to 20 minutes)
-    final timeSince = status.timeSinceIqamah;
-    title = '🕌 ${status.currentMarker!.name} - Iqamah Started';
-    body =
-        '${DateTimeUtils.formatDuration(timeSince)} since Iqamah • Next: ${status.nextMarker?.name ?? ""}';
-  } else if (status.isInCountupPeriod) {
-    // Show countup (time since prayer started)
-    final timeSince = status.timeSinceCurrent;
-    title = '🕌 ${status.currentMarker!.name}';
-    body =
-        '${DateTimeUtils.formatDuration(timeSince)} since Adhan • Next: ${status.nextMarker?.name ?? ""}';
-  } else {
-    // Show countdown to next prayer
-    final timeToNext = status.timeUntilNext;
-    final nextName = status.nextMarker?.name ?? 'Next Prayer';
-    final nextTime = status.nextMarker?.time;
-    final timeStr = nextTime != null ? DateTimeUtils.formatTime(nextTime) : '';
+  // Re-implement basic status logic here locally for independent background service
+  bool isInIqamahWindow = false;
+  Duration timeUntilIqamah = Duration.zero;
 
-    title = '⏱ $nextName at $timeStr';
+  if (currentPrayer != null && currentPrayer.isPrayer) {
+    isInIqamahWindow = currentPrayer.isInIqamahWindow(now);
+    if (isInIqamahWindow) {
+      timeUntilIqamah = currentPrayer.iqamahTime!.difference(now);
+    }
+  }
+
+  if (isInIqamahWindow && currentPrayer != null) {
+    // Show countdown to iqamah
+    title = '🕌 ${currentPrayer.name} - Iqamah Soon';
+    body = 'Iqamah in ${DateTimeUtils.formatDuration(timeUntilIqamah)}';
+  } else if (nextPrayer != null) {
+    // Show countdown to next prayer
+    final timeToNext = nextPrayer.time.difference(now);
+    final timeStr = DateTimeUtils.formatTime(nextPrayer.time);
+
+    title = '⏱ ${nextPrayer.name} at $timeStr';
     body = 'In ${DateTimeUtils.formatDuration(timeToNext)}';
+  } else {
+    // End of day
+    title = 'Prayer Times';
+    body = 'No more prayers today';
   }
 
   return _NotificationContent(title: title, body: body);

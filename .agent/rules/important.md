@@ -8,12 +8,12 @@ trigger: always_on
 3. Verify all assumptions against documentation before implementation.
 
 # Flutter Architecture Standards
-4. **Structure:** Follow a **Feature-First** directory structure (`lib/features/<feature_name>`).
-5. **Layers:** Inside each feature, strictly enforce **Clean Architecture** layers:
-   - `presentation/` (UI Widgets, State Controllers)
-   - `domain/` (Business Logic, Entities)
-   - `data/` (Repositories, API/DB calls, Models)
-6. **Separation of Concerns:** Keep UI widgets "dumb." Never place HTTP calls or complex business logic directly inside Widgets.
+4. **Structure:** Follow a **Feature-First** directory structure (`lib/src/features/<feature_name>`).
+5. **Layers:** Inside each feature, apply **Pragmatic Layered Architecture**:
+   - `presentation/` (UI Widgets, State Controllers/Providers)
+   - `data/` (Repositories, Data Sources, DTOs)
+   - `domain/` (Models/Entities only; omit UseCases/Interactors unless business logic is complex)
+6. **Separation of Concerns:** Keep UI widgets "dumb." Logic lives in Controllers; Data fetching lives in Repositories. Avoid "Pass-through" layers.
 7. **Theming:** Use **FlexColorScheme** (`flex_color_scheme`) for robust, accessible light/dark theming. Avoid manually configuring complex `ThemeData` properties.
 8. **Animations:** Use **Flutter Animate** (`flutter_animate`) for declarative, chainable UI effects. Prefer this over manually managing `AnimationController` unless complex choreography is required.
 9. **Components:** Default to **Material 3** widgets. If a custom design system is needed, wrap Material widgets in `core/widgets/` rather than importing heavy UI kits, unless specifically requested.

@@ -1,75 +1,40 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import '../models/prayer_marker.dart';
-import '../services/prayer_time_service.dart';
-import '../utils/date_time_utils.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:trying_flutter/core/utils/date_time_utils.dart';
+import 'package:trying_flutter/features/prayer/domain/entities/prayer_time.dart';
+import 'package:trying_flutter/features/prayer/presentation/providers/prayer_provider.dart';
 
-class HomeScreen extends StatefulWidget {
-  final PrayerTimeService prayerService;
-
-  const HomeScreen({super.key, required this.prayerService});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  Timer? _timer;
-  late List<PrayerMarker> _markers;
-  late PrayerStatus _status;
+class HomeScreen extends ConsumerWidget {
+  const HomeScreen({super.key});
 
   @override
-  void initState() {
-    super.initState();
-    // Initialize data synchronously (no setState)
-    final now = DateTime.now();
-    _markers = widget.prayerService.getMarkersForDate(now);
-    _status = widget.prayerService.getCurrentStatus(now);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prayerTimesAsync = ref.watch(prayerTimesProvider);
+    final nextPrayer = ref.watch(nextPrayerProvider);
+    final now = ref.watch(tickerProvider).value ?? DateTime.now();
 
-    // Start timer after first frame to avoid setState during build
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-        _updateData();
-      });
-    });
-  }
-
-  void _updateData() {
-    if (!mounted) return;
-    final now = DateTime.now();
-    setState(() {
-      _markers = widget.prayerService.getMarkersForDate(now);
-      _status = widget.prayerService.getCurrentStatus(now);
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1a1a2e),
+      backgroundColor: const Color(0xFF1a1a2e), // Keep original background
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header with current status
-            _buildHeader(),
-            // Main countdown/countup display
-            _buildMainDisplay(),
-            // Prayer times list
-            Expanded(child: _buildPrayerList()),
-          ],
+        child: prayerTimesAsync.when(
+          data: (prayers) {
+            return Column(
+              children: [
+                _buildHeader(now).animate().fadeIn().slideY(begin: -0.2),
+                _buildMainDisplay(nextPrayer, now).animate().fadeIn().scale(),
+                Expanded(child: _buildPrayerList(prayers, nextPrayer, now)),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Error: $err')),
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(DateTime now) {
     return Container(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -84,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _formatDate(DateTime.now()),
+            _formatDate(now),
             style: TextStyle(
               fontSize: 16,
               color: Colors.white.withValues(alpha: 0.6),
@@ -95,23 +60,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMainDisplay() {
-    String label;
-    String time;
-    Color accentColor;
+  Widget _buildMainDisplay(PrayerTime? nextPrayer, DateTime now) {
+    String label = 'Next Prayer';
+    String timeStr = '--:--';
+    Color accentColor = Colors.cyanAccent;
 
-    if (_status.isInIqamahPeriod) {
-      label = '${_status.currentMarker!.name} Iqamah in';
-      time = DateTimeUtils.formatDuration(_status.timeUntilIqamah);
-      accentColor = Colors.orangeAccent;
-    } else if (_status.isInCountupPeriod) {
-      label = 'Since ${_status.currentMarker!.name}';
-      time = DateTimeUtils.formatDuration(_status.timeSinceCurrent);
-      accentColor = Colors.greenAccent;
+    // Simple logic for display (can be enhanced with full PrayerStatus logic if needed)
+    if (nextPrayer != null) {
+      final diff = nextPrayer.time.difference(now);
+      label = 'Until ${nextPrayer.name}';
+      timeStr = DateTimeUtils.formatDuration(diff);
+
+      // Iqamah check (simplified)
+      if (nextPrayer.isInIqamahWindow(now)) {
+        label = '${nextPrayer.name} Iqamah in';
+        timeStr = DateTimeUtils.formatDuration(
+          nextPrayer.iqamahTime!.difference(now),
+        );
+        accentColor = Colors.orangeAccent;
+      }
     } else {
-      label = 'Until ${_status.nextMarker?.name ?? "Next Prayer"}';
-      time = DateTimeUtils.formatDuration(_status.timeUntilNext);
-      accentColor = Colors.cyanAccent;
+      label = 'No more prayers';
+      timeStr = 'Done';
     }
 
     return Container(
@@ -141,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            time,
+            timeStr,
             style: const TextStyle(
               fontSize: 56,
               fontWeight: FontWeight.bold,
@@ -150,10 +120,10 @@ class _HomeScreenState extends State<HomeScreen> {
               letterSpacing: 4,
             ),
           ),
-          if (_status.nextMarker != null && !_status.isInCountupPeriod) ...[
+          if (nextPrayer != null) ...[
             const SizedBox(height: 12),
             Text(
-              'at ${DateTimeUtils.formatTime(_status.nextMarker!.time)}',
+              'at ${DateTimeUtils.formatTime(nextPrayer.time)}',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.white.withValues(alpha: 0.6),
@@ -165,58 +135,67 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPrayerList() {
-    // Separate prayers and night markers
-    final prayers = _markers
+  Widget _buildPrayerList(
+    List<PrayerTime> markers,
+    PrayerTime? nextPrayer,
+    DateTime now,
+  ) {
+    final prayers = markers
         .where((m) => m.isPrayer || m.name == 'Sunrise')
         .toList();
-    final nightMarkers = _markers
-        .where(
-          (m) =>
-              m.name == 'First Third' ||
-              m.name == 'Midnight' ||
-              m.name == 'Last Third',
-        )
+    final nightMarkers = markers
+        .where((m) => !m.isPrayer && m.name != 'Sunrise')
         .toList();
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Prayer times section
-        ...prayers.map((marker) => _buildMarkerTile(marker)),
-
+        ...prayers.map(
+          (m) =>
+              _buildMarkerTile(m, nextPrayer, now).animate().fadeIn().slideX(),
+        ),
         const SizedBox(height: 20),
-
-        // Night markers section
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Text(
-            'Night Markers',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withValues(alpha: 0.5),
+        if (nightMarkers.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Text(
+              'Night Markers',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
             ),
+          ).animate().fadeIn(),
+          ...nightMarkers.map(
+            (m) => _buildMarkerTile(
+              m,
+              nextPrayer,
+              now,
+              isNightMarker: true,
+            ).animate().fadeIn().slideX(),
           ),
-        ),
-        ...nightMarkers.map(
-          (marker) => _buildMarkerTile(marker, isNightMarker: true),
-        ),
+        ],
       ],
     );
   }
 
-  Widget _buildMarkerTile(PrayerMarker marker, {bool isNightMarker = false}) {
-    final now = DateTime.now();
+  Widget _buildMarkerTile(
+    PrayerTime marker,
+    PrayerTime? nextPrayer,
+    DateTime now, {
+    bool isNightMarker = false,
+  }) {
     final isPassed = marker.hasPassed(now);
-    final isNext = _status.nextMarker?.name == marker.name;
-    final isCurrent = _status.currentMarker?.name == marker.name;
+    final isNext = nextPrayer == marker; // Object equality thanks to Equatable
+
+    // Logic for "Current" (just passed) is a bit trickier without PrayerStatus,
+    // but we can infer: if passed and next is distinct, maybe it's "current"?
+    // For now, let's just highlight Next.
 
     Color tileColor;
     if (isNext) {
       tileColor = Colors.cyanAccent.withValues(alpha: 0.15);
-    } else if (isCurrent && _status.isInCountupPeriod) {
-      tileColor = Colors.greenAccent.withValues(alpha: 0.15);
     } else {
       tileColor = Colors.white.withValues(alpha: 0.05);
     }
@@ -233,7 +212,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         children: [
-          // Icon
           Container(
             width: 40,
             height: 40,
@@ -249,7 +227,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(width: 16),
-          // Name and Arabic
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: isPassed && !isCurrent
+                    color: isPassed && !isNext
                         ? Colors.white.withValues(alpha: 0.4)
                         : Colors.white,
                   ),
@@ -274,7 +251,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          // Time and iqamah
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -283,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: isPassed && !isCurrent
+                  color: isPassed && !isNext
                       ? Colors.white.withValues(alpha: 0.4)
                       : Colors.white,
                   fontFamily: 'monospace',
@@ -304,14 +280,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Color _getMarkerColor(PrayerMarker marker, bool isPassed) {
+  Color _getMarkerColor(PrayerTime marker, bool isPassed) {
     if (isPassed) return Colors.grey;
     if (marker.isPrayer) return Colors.greenAccent;
     if (marker.name == 'Sunrise') return Colors.orangeAccent;
-    return Colors.purpleAccent; // Night markers
+    return Colors.purpleAccent;
   }
 
-  String _getMarkerEmoji(PrayerMarker marker) {
+  String _getMarkerEmoji(PrayerTime marker) {
     switch (marker.name) {
       case 'Fajr':
         return '🌙';

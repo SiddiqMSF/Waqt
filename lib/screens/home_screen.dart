@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import '../models/prayer_marker.dart';
 import '../services/prayer_time_service.dart';
+import '../utils/date_time_utils.dart';
 
 class HomeScreen extends StatefulWidget {
   final PrayerTimeService prayerService;
@@ -101,15 +102,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (_status.isInIqamahPeriod) {
       label = '${_status.currentMarker!.name} Iqamah in';
-      time = _formatDuration(_status.timeUntilIqamah);
+      time = DateTimeUtils.formatDuration(_status.timeUntilIqamah);
       accentColor = Colors.orangeAccent;
     } else if (_status.isInCountupPeriod) {
       label = 'Since ${_status.currentMarker!.name}';
-      time = _formatDuration(_status.timeSinceCurrent);
+      time = DateTimeUtils.formatDuration(_status.timeSinceCurrent);
       accentColor = Colors.greenAccent;
     } else {
       label = 'Until ${_status.nextMarker?.name ?? "Next Prayer"}';
-      time = _formatDuration(_status.timeUntilNext);
+      time = DateTimeUtils.formatDuration(_status.timeUntilNext);
       accentColor = Colors.cyanAccent;
     }
 
@@ -152,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_status.nextMarker != null && !_status.isInCountupPeriod) ...[
             const SizedBox(height: 12),
             Text(
-              'at ${_formatTime(_status.nextMarker!.time)}',
+              'at ${DateTimeUtils.formatTime(_status.nextMarker!.time)}',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.white.withValues(alpha: 0.6),
@@ -278,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                _formatTime(marker.time),
+                DateTimeUtils.formatTime(marker.time),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -290,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               if (marker.iqamahTime != null)
                 Text(
-                  'Iqamah: ${_formatTime(marker.iqamahTime!)}',
+                  'Iqamah: ${DateTimeUtils.formatTime(marker.iqamahTime!)}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.orangeAccent.withValues(alpha: 0.8),
@@ -333,23 +334,6 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return '🕌';
     }
-  }
-
-  String _formatTime(DateTime time) {
-    final hours = time.hour.toString().padLeft(2, '0');
-    final minutes = time.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
-  }
-
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   String _formatDate(DateTime date) {

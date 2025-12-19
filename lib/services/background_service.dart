@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../utils/date_time_utils.dart';
 import 'prayer_time_service.dart';
 import 'location_service.dart';
 
@@ -82,14 +83,14 @@ void onStart(ServiceInstance service) async {
   const initSettings = InitializationSettings(android: androidSettings);
   await flutterLocalNotificationsPlugin.initialize(initSettings);
 
-  // Get coordinates (use default if can't access location in background)
-  double latitude = LocationService.defaultLatitude;
-  double longitude = LocationService.defaultLongitude;
+  // Get cached coordinates
+  final locationService = LocationService();
+  final coords = await locationService.getCachedCoordinates();
 
-  // Create prayer service
+  // Create prayer service with cached coordinates
   final prayerService = PrayerTimeService(
-    latitude: latitude,
-    longitude: longitude,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
   );
 
   // Handle stop command
@@ -142,54 +143,31 @@ _NotificationContent _buildNotification(PrayerTimeService prayerService) {
     // Show countdown to iqamah
     final timeToIqamah = status.timeUntilIqamah;
     title = '🕌 ${status.currentMarker!.name} - Iqamah Soon';
-    body = 'Iqamah in ${_formatDuration(timeToIqamah)}';
+    body = 'Iqamah in ${DateTimeUtils.formatDuration(timeToIqamah)}';
   } else if (status.isInPostIqamahPeriod) {
     // Show elapsed time since iqamah (up to 20 minutes)
     final timeSince = status.timeSinceIqamah;
     title = '🕌 ${status.currentMarker!.name} - Iqamah Started';
     body =
-        '${_formatDuration(timeSince)} since Iqamah • Next: ${status.nextMarker?.name ?? ""}';
+        '${DateTimeUtils.formatDuration(timeSince)} since Iqamah • Next: ${status.nextMarker?.name ?? ""}';
   } else if (status.isInCountupPeriod) {
     // Show countup (time since prayer started)
     final timeSince = status.timeSinceCurrent;
     title = '🕌 ${status.currentMarker!.name}';
     body =
-        '${_formatDuration(timeSince)} since Adhan • Next: ${status.nextMarker?.name ?? ""}';
+        '${DateTimeUtils.formatDuration(timeSince)} since Adhan • Next: ${status.nextMarker?.name ?? ""}';
   } else {
     // Show countdown to next prayer
     final timeToNext = status.timeUntilNext;
     final nextName = status.nextMarker?.name ?? 'Next Prayer';
     final nextTime = status.nextMarker?.time;
-    final timeStr = nextTime != null ? _formatTime(nextTime) : '';
+    final timeStr = nextTime != null ? DateTimeUtils.formatTime(nextTime) : '';
 
     title = '⏱ $nextName at $timeStr';
-    body = 'In ${_formatDuration(timeToNext)}';
+    body = 'In ${DateTimeUtils.formatDuration(timeToNext)}';
   }
 
   return _NotificationContent(title: title, body: body);
-}
-
-/// Format duration as HH:MM:SS or MM:SS
-String _formatDuration(Duration duration) {
-  if (duration.isNegative) {
-    return '00:00';
-  }
-
-  final hours = duration.inHours;
-  final minutes = duration.inMinutes.remainder(60);
-  final seconds = duration.inSeconds.remainder(60);
-
-  if (hours > 0) {
-    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-  return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-}
-
-/// Format time as HH:MM
-String _formatTime(DateTime time) {
-  final hours = time.hour.toString().padLeft(2, '0');
-  final minutes = time.minute.toString().padLeft(2, '0');
-  return '$hours:$minutes';
 }
 
 /// Simple class to hold notification content

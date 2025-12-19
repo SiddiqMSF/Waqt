@@ -1,11 +1,15 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service for handling location permissions and retrieval.
 class LocationService {
   // Default coordinates (Madinah)
   static const double defaultLatitude = 24.48;
   static const double defaultLongitude = 39.55;
+
+  static const String _keyLatitude = 'latitude';
+  static const String _keyLongitude = 'longitude';
 
   /// Request location permission and get current position
   Future<Position?> getCurrentPosition() async {
@@ -37,12 +41,43 @@ class LocationService {
     return null;
   }
 
-  /// Get coordinates, falling back to default if location unavailable
+  /// Get coordinates, falling back to cached or default if location unavailable
   Future<({double latitude, double longitude})> getCoordinates() async {
     final position = await getCurrentPosition();
     if (position != null) {
+      // Save to shared_preferences
+      await _saveCoordinates(position.latitude, position.longitude);
       return (latitude: position.latitude, longitude: position.longitude);
     }
+
+    // Try to get cached
+    return await getCachedCoordinates();
+  }
+
+  /// Get cached coordinates or default
+  Future<({double latitude, double longitude})> getCachedCoordinates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lat = prefs.getDouble(_keyLatitude);
+      final lng = prefs.getDouble(_keyLongitude);
+
+      if (lat != null && lng != null) {
+        return (latitude: lat, longitude: lng);
+      }
+    } catch (e) {
+      // Ignore errors in background/init
+    }
+
     return (latitude: defaultLatitude, longitude: defaultLongitude);
+  }
+
+  Future<void> _saveCoordinates(double latitude, double longitude) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_keyLatitude, latitude);
+      await prefs.setDouble(_keyLongitude, longitude);
+    } catch (e) {
+      // Ignore errors
+    }
   }
 }

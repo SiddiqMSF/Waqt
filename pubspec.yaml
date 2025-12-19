@@ -42,6 +42,7 @@ dependencies:
   flutter_background_service_android: ^6.2.7
   home_widget: ^0.8.1
   intl: ^0.20.2
+  shared_preferences: ^2.5.4
 
 dev_dependencies:
   flutter_test:

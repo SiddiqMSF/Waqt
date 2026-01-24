@@ -55,5 +55,35 @@ void main() {
       expect(next, isNotNull);
       expect(next?.name, 'Fajr');
     });
+
+    test('should identify current prayer correctly', () async {
+      final prayers = await repository.getPrayerTimes(
+        latitude: lat,
+        longitude: lng,
+      );
+
+      final dhuhr = prayers.firstWhere((p) => p.name == 'Dhuhr');
+      final asr = prayers.firstWhere((p) => p.name == 'Asr');
+
+      // Test 1: Just after Dhuhr starts
+      final afterDhuhr = dhuhr.time.add(const Duration(seconds: 1));
+      final currentAtDhuhr = repository.getCurrentPrayer(prayers, afterDhuhr);
+      expect(currentAtDhuhr?.name, 'Dhuhr');
+
+      // Test 2: Middle between Dhuhr and Asr
+      final midTime = dhuhr.time.add(asr.time.difference(dhuhr.time) ~/ 2);
+      final currentMid = repository.getCurrentPrayer(prayers, midTime);
+      expect(currentMid?.name, 'Dhuhr');
+
+      // Test 3: Before Fajr (should be null as strictly speaking "today's" first prayer hasn't started)
+      // Note: In a real app we might want to show "Esha" from yesterday, but this method operates on the passed list.
+      final fajr = prayers.firstWhere((p) => p.name == 'Fajr');
+      final beforeFajr = fajr.time.subtract(const Duration(minutes: 10));
+      final currentBeforeFajr = repository.getCurrentPrayer(
+        prayers,
+        beforeFajr,
+      );
+      expect(currentBeforeFajr, isNull);
+    });
   });
 }

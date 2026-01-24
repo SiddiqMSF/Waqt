@@ -7,4 +7,6 @@ abstract class PrayerRepository {
   });
 
   PrayerTime? getNextPrayer(List<PrayerTime> prayers, DateTime now);
+
+  PrayerTime? getCurrentPrayer(List<PrayerTime> prayers, DateTime now);
 }

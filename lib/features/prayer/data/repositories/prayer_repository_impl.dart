@@ -3,16 +3,33 @@ import 'package:trying_flutter/features/prayer/domain/entities/prayer_time.dart'
 import 'package:trying_flutter/features/prayer/domain/repositories/prayer_repository.dart';
 
 class PrayerRepositoryImpl implements PrayerRepository {
+  // Simple in-memory cache
+  List<PrayerTime>? _cachedPrayers;
+  DateTime? _cacheDate;
+  Coordinates? _cachedCoordinates;
+
   @override
   Future<List<PrayerTime>> getPrayerTimes({
     required double latitude,
     required double longitude,
   }) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Return cache if valid (same day and location)
+    if (_cachedPrayers != null &&
+        _cacheDate != null &&
+        _cacheDate!.isAtSameMomentAs(today) &&
+        _cachedCoordinates != null &&
+        _cachedCoordinates!.latitude == latitude &&
+        _cachedCoordinates!.longitude == longitude) {
+      return _cachedPrayers!;
+    }
+
+    // Otherwise calculate
     final myCoordinates = Coordinates(latitude, longitude);
     final params = CalculationMethod.umm_al_qura.getParameters();
 
-    // Calculate for today
-    final now = DateTime.now();
     final dateComponents = DateComponents.from(now);
     final prayerTimes = PrayerTimes(myCoordinates, dateComponents, params);
     final sunnahTimes = SunnahTimes(prayerTimes);
@@ -40,7 +57,7 @@ class PrayerRepositoryImpl implements PrayerRepository {
       lastThirdTime,
     );
 
-    return [
+    final results = [
       PrayerTime(
         name: 'Fajr',
         arabicName: 'الفجر',
@@ -103,6 +120,13 @@ class PrayerRepositoryImpl implements PrayerRepository {
         description: 'Diff: ${lastThirdDiff.inSeconds}s',
       ),
     ];
+
+    // Update Cache
+    _cachedPrayers = results;
+    _cacheDate = today;
+    _cachedCoordinates = myCoordinates;
+
+    return results;
   }
 
   DateTime _getNextFajr(
@@ -132,5 +156,22 @@ class PrayerRepositoryImpl implements PrayerRepository {
     }
     // Handle "next day" logic in provider or calling code, strictly this returns null if none left today
     return null;
+  }
+
+  @override
+  PrayerTime? getCurrentPrayer(List<PrayerTime> prayers, DateTime now) {
+    final sorted = List<PrayerTime>.from(prayers)
+      ..sort((a, b) => a.time.compareTo(b.time));
+
+    PrayerTime? current;
+    for (final prayer in sorted) {
+      if (prayer.time.isBefore(now)) {
+        current = prayer;
+      } else {
+        // Once we hit a future prayer, the previous one was the current one
+        break;
+      }
+    }
+    return current;
   }
 }

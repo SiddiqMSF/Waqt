@@ -17,7 +17,7 @@ final locationServiceProvider = Provider<LocationService>((ref) {
 
 // Timer Provider to tick every minute
 final tickerProvider = StreamProvider<DateTime>((ref) {
-  return Stream.periodic(const Duration(minutes: 1), (i) => DateTime.now());
+  return Stream.periodic(const Duration(seconds: 1), (i) => DateTime.now());
 });
 
 // Prayer Times Provider

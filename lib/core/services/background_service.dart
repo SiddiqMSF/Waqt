@@ -101,7 +101,7 @@ void onStart(ServiceInstance service) async {
   Timer.periodic(const Duration(seconds: 1), (timer) async {
     if (service is AndroidServiceInstance) {
       if (await service.isForegroundService()) {
-        // Calculate times fresh every tick (or could cache purely times list)
+        // Repository now has internal caching, so this is efficient
         final prayers = await repository.getPrayerTimes(
           latitude: coords.latitude,
           longitude: coords.longitude,
@@ -155,23 +155,11 @@ _NotificationContent _buildNotification(
 ) {
   final now = DateTime.now();
   final nextPrayer = repo.getNextPrayer(prayers, now);
-  // Need to find "current" for iqamah logic.
-  // Let's assume simplest "current" is the last passed prayer.
-  PrayerTime? currentPrayer;
-
-  // Sort and find last passed
-  final sorted = List<PrayerTime>.from(prayers)
-    ..sort((a, b) => a.time.compareTo(b.time));
-  for (final p in sorted) {
-    if (p.time.isBefore(now)) {
-      currentPrayer = p;
-    }
-  }
+  final currentPrayer = repo.getCurrentPrayer(prayers, now);
 
   String title;
   String body;
 
-  // Re-implement basic status logic here locally for independent background service
   bool isInIqamahWindow = false;
   Duration timeUntilIqamah = Duration.zero;
 

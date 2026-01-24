@@ -13,6 +13,7 @@ trigger: always_on
    - `presentation/` (UI Widgets, State Controllers/Providers)
    - `data/` (Repositories, Data Sources, DTOs)
    - `domain/` (Models/Entities only; omit UseCases/Interactors unless business logic is complex)
+5. follow https://docs.flutter.dev/app-architecture
 6. **Separation of Concerns:** Keep UI widgets "dumb." Logic lives in Controllers; Data fetching lives in Repositories. Avoid "Pass-through" layers.
 7. **Theming:** Use **FlexColorScheme** (`flex_color_scheme`) for robust, accessible light/dark theming. Avoid manually configuring complex `ThemeData` properties.
 8. **Animations:** Use **Flutter Animate** (`flutter_animate`) for declarative, chainable UI effects. Prefer this over manually managing `AnimationController` unless complex choreography is required.

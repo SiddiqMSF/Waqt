@@ -1,6 +1,4 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trying_flutter/core/utils/date_time_utils.dart';
 import 'package:trying_flutter/features/prayer/domain/entities/prayer_time.dart';
@@ -16,8 +14,6 @@ class HomeScreen extends ConsumerWidget {
     final now = ref.watch(tickerProvider).value ?? DateTime.now();
 
     return Scaffold(
-      // Material 3 defaults to surface color, so we don't need to force one.
-      // But for a premium feel with glass, a subtle background is nice.
       body: prayerTimesAsync.when(
         data: (prayers) {
           return CustomScrollView(
@@ -29,11 +25,7 @@ class HomeScreen extends ConsumerWidget {
                     horizontal: 16,
                     vertical: 8,
                   ),
-                  child: _buildNextPrayerCard(
-                    context,
-                    nextPrayer,
-                    now,
-                  ).animate().fadeIn().scale(),
+                  child: _buildNextPrayerCard(context, nextPrayer, now),
                 ),
               ),
               _buildPrayerList(context, prayers, nextPrayer, now),
@@ -50,30 +42,11 @@ class HomeScreen extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return SliverAppBar.large(
-      title: Text(
-        'Prayer Times',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: colorScheme.onSurface,
-        ),
-      ),
+      title: const Text('Prayer Times'),
       centerTitle: false,
       expandedHeight: 120,
       floating: true,
       pinned: true,
-      surfaceTintColor: colorScheme.surfaceTint,
-      backgroundColor: colorScheme.surface.withValues(
-        alpha: 0.8,
-      ), // Translucent for glass effect behind status bar
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsetsDirectional.only(start: 16, bottom: 16),
-        background: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
-      ),
       actions: [
         Padding(
           padding: const EdgeInsets.all(8.0),
@@ -121,50 +94,38 @@ class HomeScreen extends ConsumerWidget {
       onCardColor = colorScheme.onSurfaceVariant;
     }
 
-    // Glassmorphic Card
     return Card(
-      elevation: 0,
-      color: cardColor.withValues(alpha: 0.3), // Transparent container
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(color: cardColor.withValues(alpha: 0.5)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Text(
-                  label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(color: onCardColor),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  timeStr,
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: onCardColor,
-                    fontFamily: 'monospace',
-                    letterSpacing: -1,
-                  ),
-                ),
-                if (subLabel.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    subLabel,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: onCardColor.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ],
-              ],
+      color: cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: onCardColor),
             ),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              timeStr,
+              style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: onCardColor,
+                fontFamily: 'monospace',
+                letterSpacing: -1,
+              ),
+            ),
+            if (subLabel.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                subLabel,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: onCardColor.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -220,17 +181,11 @@ class HomeScreen extends ConsumerWidget {
     // Determine styles based on state
     Color? tileColor;
     if (isNext) {
-      tileColor = colorScheme.primaryContainer.withValues(
-        alpha: 0.3,
-      ); // Highlight next
-    } else if (isPassed) {
-      tileColor = null; // Standard transparent
-    } else {
-      tileColor = null;
+      tileColor = colorScheme.primaryContainer;
     }
 
     final textColor = isPassed && !isNext
-        ? colorScheme.onSurface.withValues(alpha: 0.5) // Dim passed
+        ? colorScheme.onSurface.withOpacity(0.5)
         : colorScheme.onSurface;
 
     final iconColor = isNext
@@ -239,25 +194,10 @@ class HomeScreen extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      elevation: 0,
-      color:
-          tileColor ??
-          Colors
-              .transparent, // Transparent for plain list feeling or highlighted
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: tileColor,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            _getMarkerEmoji(marker),
-            style: const TextStyle(fontSize: 20),
-          ),
-        ),
+        leading: Icon(_getMarkerIcon(marker), color: iconColor, size: 28),
         title: Text(
           marker.name,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -267,9 +207,9 @@ class HomeScreen extends ConsumerWidget {
         ),
         subtitle: Text(
           marker.arabicName,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: textColor.withValues(alpha: 0.7),
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: textColor.withOpacity(0.7)),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -292,14 +232,16 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
-    ).animate().fadeIn().slideX();
+    );
   }
 
-  String _getMarkerEmoji(PrayerTime marker) {
-    if (marker.name == 'Sunrise') return '🌅';
-    if (marker.name.contains('Third') || marker.name == 'Midnight') return '🌑';
-    if (marker.isPrayer) return '🕌';
-    return '⏱️';
+  IconData _getMarkerIcon(PrayerTime marker) {
+    if (marker.name == 'Sunrise') return Icons.wb_sunny;
+    if (marker.name.contains('Third') || marker.name == 'Midnight') {
+      return Icons.nightlight_round;
+    }
+    if (marker.isPrayer) return Icons.mosque;
+    return Icons.schedule;
   }
 
   String _formatDate(DateTime date) {

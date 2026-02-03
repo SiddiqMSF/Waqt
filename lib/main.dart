@@ -1,4 +1,3 @@
-import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,18 +52,13 @@ class _PrayerTimesAppState extends State<PrayerTimesApp> {
       );
     }
 
-    // Use DynamicColorBuilder to get wallpaper colors on Android 12+
-    return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        return MaterialApp(
-          title: 'Prayer Times',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme(lightDynamic),
-          darkTheme: AppTheme.darkTheme(darkDynamic),
-          themeMode: ThemeMode.dark,
-          home: const HomeScreen(),
-        );
-      },
+    return MaterialApp(
+      title: 'Prayer Times',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.dark,
+      home: const HomeScreen(),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trying_flutter/core/utils/date_time_utils.dart';
@@ -14,26 +15,46 @@ class HomeScreen extends ConsumerWidget {
     final now = ref.watch(tickerProvider).value ?? DateTime.now();
 
     return Scaffold(
-      body: prayerTimesAsync.when(
-        data: (prayers) {
-          return CustomScrollView(
-            slivers: [
-              _buildAppBar(context, now),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: _buildNextPrayerCard(context, nextPrayer, now),
-                ),
+      body: Stack(
+        children: [
+          // Background image with single blur (performant)
+          Positioned.fill(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Image.asset(
+                'assets/bg.jpg',
+                fit: BoxFit.cover,
+                cacheWidth: 1080, // Limit decoded resolution for performance
               ),
-              _buildPrayerList(context, prayers, nextPrayer, now),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+            ),
+          ),
+          // Dark overlay for readability
+          Positioned.fill(
+            child: Container(color: Colors.black.withValues(alpha: 0.4)),
+          ),
+          // Content
+          prayerTimesAsync.when(
+            data: (prayers) {
+              return CustomScrollView(
+                slivers: [
+                  _buildAppBar(context, now),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: _buildNextPrayerCard(context, nextPrayer, now),
+                    ),
+                  ),
+                  _buildPrayerList(context, prayers, nextPrayer, now),
+                ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
+          ),
+        ],
       ),
     );
   }
@@ -47,13 +68,15 @@ class HomeScreen extends ConsumerWidget {
       expandedHeight: 120,
       floating: true,
       pinned: true,
+      backgroundColor: Colors.black.withValues(alpha: 0.3),
+      surfaceTintColor: Colors.transparent,
       actions: [
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Chip(
-            label: Text(_formatDate(now)),
+          child: _GlassChip(
+            label: _formatDate(now),
             backgroundColor: colorScheme.secondaryContainer,
-            labelStyle: TextStyle(color: colorScheme.onSecondaryContainer),
+            labelColor: colorScheme.onSecondaryContainer,
           ),
         ),
       ],
@@ -94,7 +117,7 @@ class HomeScreen extends ConsumerWidget {
       onCardColor = colorScheme.onSurfaceVariant;
     }
 
-    return Card(
+    return _GlassCard(
       color: cardColor,
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -112,7 +135,6 @@ class HomeScreen extends ConsumerWidget {
               style: Theme.of(context).textTheme.displayLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: onCardColor,
-                fontFamily: 'monospace',
                 letterSpacing: -1,
               ),
             ),
@@ -121,7 +143,7 @@ class HomeScreen extends ConsumerWidget {
               Text(
                 subLabel,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: onCardColor.withOpacity(0.8),
+                  color: onCardColor.withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -144,26 +166,31 @@ class HomeScreen extends ConsumerWidget {
         .where((m) => !m.isPrayer && m.name != 'Sunrise')
         .toList();
 
-    return SliverList(
-      delegate: SliverChildListDelegate([
-        ...prayers.map((m) => _buildPrayerTile(context, m, nextPrayer, now)),
-        if (nightMarkers.isNotEmpty) ...[
-          const Divider(indent: 16, endIndent: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Night Markers',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          ...prayers.map((m) => _buildPrayerTile(context, m, nextPrayer, now)),
+          if (nightMarkers.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white24),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'Night Markers',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: Colors.white70),
               ),
             ),
-          ),
-          ...nightMarkers.map(
-            (m) => _buildPrayerTile(context, m, nextPrayer, now, isNight: true),
-          ),
-        ],
-        const SizedBox(height: 80), // Bottom padding
-      ]),
+            ...nightMarkers.map(
+              (m) =>
+                  _buildPrayerTile(context, m, nextPrayer, now, isNight: true),
+            ),
+          ],
+          const SizedBox(height: 80), // Bottom padding
+        ]),
+      ),
     );
   }
 
@@ -184,52 +211,55 @@ class HomeScreen extends ConsumerWidget {
       tileColor = colorScheme.primaryContainer;
     }
 
-    final textColor = isPassed && !isNext
-        ? colorScheme.onSurface.withOpacity(0.5)
-        : colorScheme.onSurface;
+    final textColor = isPassed && !isNext ? Colors.white54 : Colors.white;
 
     final iconColor = isNext
         ? colorScheme.primary
-        : (isPassed ? colorScheme.outline : colorScheme.secondary);
+        : (isPassed ? Colors.white38 : colorScheme.secondary);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      color: tileColor,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Icon(_getMarkerIcon(marker), color: iconColor, size: 28),
-        title: Text(
-          marker.name,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
-            color: textColor,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8), // Wider gap between items
+      child: _GlassCard(
+        color: tileColor,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
           ),
-        ),
-        subtitle: Text(
-          marker.arabicName,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: textColor.withOpacity(0.7)),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              DateTimeUtils.formatTime(marker.time),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: isNext ? FontWeight.w900 : FontWeight.w500,
-                color: textColor,
-              ),
+          leading: Icon(_getMarkerIcon(marker), color: iconColor, size: 28),
+          title: Text(
+            marker.name,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
+              color: textColor,
             ),
-            if (marker.iqamahTime != null)
+          ),
+          subtitle: Text(
+            marker.arabicName,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: textColor.withValues(alpha: 0.7),
+            ),
+          ),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
               Text(
-                'Iqamah: ${DateTimeUtils.formatTime(marker.iqamahTime!)}',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(color: colorScheme.tertiary),
+                DateTimeUtils.formatTime(marker.time),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: isNext ? FontWeight.w900 : FontWeight.w500,
+                  color: textColor,
+                ),
               ),
-          ],
+              if (marker.iqamahTime != null)
+                Text(
+                  'Iqamah: ${DateTimeUtils.formatTime(marker.iqamahTime!)}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: colorScheme.tertiary),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -260,5 +290,62 @@ class HomeScreen extends ConsumerWidget {
       'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+}
+
+/// Performant glass card - uses solid semi-transparent color instead of blur
+class _GlassCard extends StatelessWidget {
+  final Widget child;
+  final Color? color;
+
+  const _GlassCard({required this.child, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = color ?? Colors.white;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: effectiveColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Glass Chip for the date display
+class _GlassChip extends StatelessWidget {
+  final String label;
+  final Color backgroundColor;
+  final Color labelColor;
+
+  const _GlassChip({
+    required this.label,
+    required this.backgroundColor,
+    required this.labelColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: labelColor, fontWeight: FontWeight.w500),
+      ),
+    );
   }
 }

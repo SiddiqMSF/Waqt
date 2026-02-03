@@ -22,7 +22,7 @@ class HomeScreen extends ConsumerWidget {
             child: ImageFiltered(
               imageFilter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
               child: Image.asset(
-                'assets/bg.jpg',
+                'assets/bg.webp',
                 fit: BoxFit.cover,
                 cacheWidth: 1080, // Limit decoded resolution for performance
               ),

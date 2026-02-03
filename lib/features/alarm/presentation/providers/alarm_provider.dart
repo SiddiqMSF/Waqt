@@ -152,3 +152,14 @@ final prayerHasAlarmProvider = Provider.family<bool, String>((ref, prayerName) {
   final alarms = ref.watch(alarmsProvider);
   return alarms.any((a) => a.prayerName == prayerName && a.isEnabled);
 });
+
+/// Provider to get all alarms for a specific prayer
+final prayerAlarmsProvider = Provider.family<List<PrayerAlarm>, String>((
+  ref,
+  prayerName,
+) {
+  final alarms = ref.watch(alarmsProvider);
+  return alarms
+      .where((a) => a.prayerName == prayerName && a.isEnabled)
+      .toList();
+});

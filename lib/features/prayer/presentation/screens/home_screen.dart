@@ -265,7 +265,7 @@ class HomeScreen extends ConsumerWidget {
               ),
               if (hasAlarm) ...[
                 const SizedBox(width: 6),
-                Icon(Icons.alarm, size: 16, color: colorScheme.tertiary),
+                _buildAlarmChip(context, ref, marker.name, colorScheme),
               ],
             ],
           ),
@@ -310,6 +310,54 @@ class HomeScreen extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _QuickAlarmSheet(prayerName: prayerName),
+    );
+  }
+
+  Widget _buildAlarmChip(
+    BuildContext context,
+    WidgetRef ref,
+    String prayerName,
+    ColorScheme colorScheme,
+  ) {
+    final alarms = ref.watch(prayerAlarmsProvider(prayerName));
+    if (alarms.isEmpty) return const SizedBox.shrink();
+
+    // Show first alarm offset only, very minimal
+    final firstAlarm = alarms.first;
+    final offsetMin = firstAlarm.offset.inMinutes;
+    final label = offsetMin == 0
+        ? 'At'
+        : '${offsetMin > 0 ? '+' : ''}$offsetMin min';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.alarm, size: 12, color: colorScheme.tertiary),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: colorScheme.tertiary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (alarms.length > 1)
+            Text(
+              ' +${alarms.length - 1}',
+              style: TextStyle(
+                fontSize: 10,
+                color: colorScheme.tertiary.withValues(alpha: 0.7),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -578,18 +626,5 @@ class _QuickAlarmSheet extends ConsumerWidget {
 
     ref.read(alarmsNotifierProvider.notifier).addAlarm(alarm);
     Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Alarm set: $label'),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            ref.read(alarmsNotifierProvider.notifier).deleteAlarm(alarm.id);
-          },
-        ),
-      ),
-    );
   }
 }

@@ -2,6 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trying_flutter/core/utils/date_time_utils.dart';
+import 'package:trying_flutter/features/alarm/domain/entities/prayer_alarm.dart';
+import 'package:trying_flutter/features/alarm/presentation/providers/alarm_provider.dart';
+import 'package:trying_flutter/features/alarm/presentation/screens/alarm_settings_screen.dart';
+import 'package:trying_flutter/features/alarm/presentation/widgets/add_alarm_sheet.dart';
 import 'package:trying_flutter/features/prayer/domain/entities/prayer_time.dart';
 import 'package:trying_flutter/features/prayer/presentation/providers/prayer_provider.dart';
 
@@ -47,7 +51,7 @@ class HomeScreen extends ConsumerWidget {
                       child: _buildNextPrayerCard(context, nextPrayer, now),
                     ),
                   ),
-                  _buildPrayerList(context, prayers, nextPrayer, now),
+                  _buildPrayerList(context, ref, prayers, nextPrayer, now),
                 ],
               );
             },
@@ -71,6 +75,18 @@ class HomeScreen extends ConsumerWidget {
       backgroundColor: Colors.black.withValues(alpha: 0.3),
       surfaceTintColor: Colors.transparent,
       actions: [
+        // Alarm settings button
+        IconButton(
+          icon: const Icon(Icons.alarm),
+          tooltip: 'Alarm Settings',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const AlarmSettingsScreen(),
+              ),
+            );
+          },
+        ),
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: _GlassChip(
@@ -155,6 +171,7 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildPrayerList(
     BuildContext context,
+    WidgetRef ref,
     List<PrayerTime> markers,
     PrayerTime? nextPrayer,
     DateTime now,
@@ -170,7 +187,9 @@ class HomeScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverList(
         delegate: SliverChildListDelegate([
-          ...prayers.map((m) => _buildPrayerTile(context, m, nextPrayer, now)),
+          ...prayers.map(
+            (m) => _buildPrayerTile(context, ref, m, nextPrayer, now),
+          ),
           if (nightMarkers.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Divider(color: Colors.white24),
@@ -184,8 +203,14 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             ...nightMarkers.map(
-              (m) =>
-                  _buildPrayerTile(context, m, nextPrayer, now, isNight: true),
+              (m) => _buildPrayerTile(
+                context,
+                ref,
+                m,
+                nextPrayer,
+                now,
+                isNight: true,
+              ),
             ),
           ],
           const SizedBox(height: 80), // Bottom padding
@@ -196,6 +221,7 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildPrayerTile(
     BuildContext context,
+    WidgetRef ref,
     PrayerTime marker,
     PrayerTime? nextPrayer,
     DateTime now, {
@@ -204,6 +230,7 @@ class HomeScreen extends ConsumerWidget {
     final isPassed = marker.hasPassed(now);
     final isNext = nextPrayer == marker;
     final colorScheme = Theme.of(context).colorScheme;
+    final hasAlarm = ref.watch(prayerHasAlarmProvider(marker.name));
 
     // Determine styles based on state
     Color? tileColor;
@@ -227,12 +254,20 @@ class HomeScreen extends ConsumerWidget {
             vertical: 8,
           ),
           leading: Icon(_getMarkerIcon(marker), color: iconColor, size: 28),
-          title: Text(
-            marker.name,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
-              color: textColor,
-            ),
+          title: Row(
+            children: [
+              Text(
+                marker.name,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
+                  color: textColor,
+                ),
+              ),
+              if (hasAlarm) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.alarm, size: 16, color: colorScheme.tertiary),
+              ],
+            ],
           ),
           subtitle: Text(
             marker.arabicName,
@@ -260,8 +295,21 @@ class HomeScreen extends ConsumerWidget {
                 ),
             ],
           ),
+          onTap: () {
+            // Quick alarm setup for this prayer
+            _showQuickAlarmSheet(context, marker.name);
+          },
         ),
       ),
+    );
+  }
+
+  void _showQuickAlarmSheet(BuildContext context, String prayerName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _QuickAlarmSheet(prayerName: prayerName),
     );
   }
 
@@ -345,6 +393,202 @@ class _GlassChip extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(color: labelColor, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+}
+
+/// Quick alarm sheet for setting common alarm offsets directly from prayer tiles
+class _QuickAlarmSheet extends ConsumerWidget {
+  final String prayerName;
+
+  const _QuickAlarmSheet({required this.prayerName});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final alarms = ref.watch(alarmsProvider);
+    final existingAlarms = alarms
+        .where((a) => a.prayerName == prayerName)
+        .toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Title
+          Row(
+            children: [
+              Icon(Icons.alarm_add, color: theme.colorScheme.primary),
+              const SizedBox(width: 12),
+              Text(
+                'Set Alarm for $prayerName',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Quick preset buttons
+          Text(
+            'Before',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [5, 10, 15, 30, 60].map((min) {
+              return ActionChip(
+                avatar: const Icon(Icons.alarm, size: 18),
+                label: Text(_formatMin(min)),
+                onPressed: () => _createAlarm(context, ref, -min),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+
+          Text(
+            'After',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [5, 10, 15, 30].map((min) {
+              return ActionChip(
+                avatar: const Icon(Icons.alarm, size: 18),
+                label: Text(_formatMin(min)),
+                onPressed: () => _createAlarm(context, ref, min),
+              );
+            }).toList(),
+          ),
+
+          // Existing alarms for this prayer
+          if (existingAlarms.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Text(
+              'Active Alarms',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...existingAlarms.map(
+              (alarm) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.alarm_on,
+                  color: alarm.isEnabled
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline,
+                ),
+                title: Text(alarm.label),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () {
+                    ref
+                        .read(alarmsNotifierProvider.notifier)
+                        .deleteAlarm(alarm.id);
+                  },
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 16),
+
+          // More options button
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              // Open full alarm sheet with this prayer pre-selected
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => AddAlarmSheet(
+                  existingAlarm: PrayerAlarm(
+                    id: ref.read(alarmsNotifierProvider.notifier).generateId(),
+                    prayerName: prayerName,
+                    offset: const Duration(minutes: -30),
+                    label: PrayerAlarm.generateLabel(
+                      prayerName,
+                      const Duration(minutes: -30),
+                    ),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.tune),
+            label: const Text('More Options'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatMin(int minutes) {
+    if (minutes >= 60) {
+      return '${minutes ~/ 60} hr';
+    }
+    return '$minutes min';
+  }
+
+  void _createAlarm(BuildContext context, WidgetRef ref, int offsetMinutes) {
+    final offset = Duration(minutes: offsetMinutes);
+    final label = PrayerAlarm.generateLabel(prayerName, offset);
+    final alarm = PrayerAlarm(
+      id: ref.read(alarmsNotifierProvider.notifier).generateId(),
+      prayerName: prayerName,
+      offset: offset,
+      label: label,
+    );
+
+    ref.read(alarmsNotifierProvider.notifier).addAlarm(alarm);
+    Navigator.pop(context);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Alarm set: $label'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            ref.read(alarmsNotifierProvider.notifier).deleteAlarm(alarm.id);
+          },
+        ),
       ),
     );
   }

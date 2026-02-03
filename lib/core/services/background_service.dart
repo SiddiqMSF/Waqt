@@ -40,12 +40,13 @@ Future<void> initializeBackgroundService() async {
 
   await service.configure(
     iosConfiguration: IosConfiguration(
-      autoStart: true,
+      autoStart: false,
       onForeground: onStart,
       onBackground: onIosBackground,
     ),
     androidConfiguration: AndroidConfiguration(
-      autoStart: true,
+      autoStart:
+          false, // Don't auto-start - we'll start manually from foreground
       onStart: onStart,
       isForegroundMode: true,
       autoStartOnBoot: true,
@@ -56,6 +57,9 @@ Future<void> initializeBackgroundService() async {
       foregroundServiceTypes: [AndroidForegroundType.specialUse],
     ),
   );
+
+  // Start the service after configuration (we're in foreground at this point)
+  await service.startService();
 }
 
 /// Start the background service

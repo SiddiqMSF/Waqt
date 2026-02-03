@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trying_flutter/core/utils/date_time_utils.dart';
+import 'package:trying_flutter/core/widgets/glass_widgets.dart';
 import 'package:trying_flutter/features/alarm/domain/entities/prayer_alarm.dart';
 import 'package:trying_flutter/features/alarm/presentation/providers/alarm_provider.dart';
 import 'package:trying_flutter/features/alarm/presentation/screens/alarm_settings_screen.dart';
@@ -89,8 +90,8 @@ class HomeScreen extends ConsumerWidget {
         ),
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: _GlassChip(
-            label: _formatDate(now),
+          child: GlassChip(
+            label: DateTimeUtils.formatDate(now),
             backgroundColor: colorScheme.secondaryContainer,
             labelColor: colorScheme.onSecondaryContainer,
           ),
@@ -133,7 +134,7 @@ class HomeScreen extends ConsumerWidget {
       onCardColor = colorScheme.onSurfaceVariant;
     }
 
-    return _GlassCard(
+    return GlassCard(
       color: cardColor,
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -203,14 +204,7 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             ...nightMarkers.map(
-              (m) => _buildPrayerTile(
-                context,
-                ref,
-                m,
-                nextPrayer,
-                now,
-                isNight: true,
-              ),
+              (m) => _buildPrayerTile(context, ref, m, nextPrayer, now),
             ),
           ],
           const SizedBox(height: 80), // Bottom padding
@@ -224,9 +218,8 @@ class HomeScreen extends ConsumerWidget {
     WidgetRef ref,
     PrayerTime marker,
     PrayerTime? nextPrayer,
-    DateTime now, {
-    bool isNight = false,
-  }) {
+    DateTime now,
+  ) {
     final isPassed = marker.hasPassed(now);
     final isNext = nextPrayer == marker;
     final colorScheme = Theme.of(context).colorScheme;
@@ -246,7 +239,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8), // Wider gap between items
-      child: _GlassCard(
+      child: GlassCard(
         color: tileColor,
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(
@@ -369,81 +362,6 @@ class HomeScreen extends ConsumerWidget {
     if (marker.isPrayer) return Icons.mosque;
     return Icons.schedule;
   }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-}
-
-/// Performant glass card - uses solid semi-transparent color instead of blur
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  final Color? color;
-
-  const _GlassCard({required this.child, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final effectiveColor = color ?? Colors.white;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: effectiveColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: child,
-    );
-  }
-}
-
-/// Glass Chip for the date display
-class _GlassChip extends StatelessWidget {
-  final String label;
-  final Color backgroundColor;
-  final Color labelColor;
-
-  const _GlassChip({
-    required this.label,
-    required this.backgroundColor,
-    required this.labelColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: backgroundColor.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: labelColor, fontWeight: FontWeight.w500),
-      ),
-    );
-  }
 }
 
 /// Quick alarm sheet for setting common alarm offsets directly from prayer tiles
@@ -517,7 +435,7 @@ class _QuickAlarmSheet extends ConsumerWidget {
             children: [5, 10, 15, 30, 60].map((min) {
               return ActionChip(
                 avatar: const Icon(Icons.alarm, size: 18),
-                label: Text(_formatMin(min)),
+                label: Text(DateTimeUtils.formatMinutes(min)),
                 onPressed: () => _createAlarm(context, ref, -min),
               );
             }).toList(),
@@ -537,7 +455,7 @@ class _QuickAlarmSheet extends ConsumerWidget {
             children: [5, 10, 15, 30].map((min) {
               return ActionChip(
                 avatar: const Icon(Icons.alarm, size: 18),
-                label: Text(_formatMin(min)),
+                label: Text(DateTimeUtils.formatMinutes(min)),
                 onPressed: () => _createAlarm(context, ref, min),
               );
             }).toList(),
@@ -605,13 +523,6 @@ class _QuickAlarmSheet extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  String _formatMin(int minutes) {
-    if (minutes >= 60) {
-      return '${minutes ~/ 60} hr';
-    }
-    return '$minutes min';
   }
 
   void _createAlarm(BuildContext context, WidgetRef ref, int offsetMinutes) {

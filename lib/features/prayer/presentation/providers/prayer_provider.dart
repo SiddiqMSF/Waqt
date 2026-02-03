@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trying_flutter/core/services/location_service.dart';
+import 'package:trying_flutter/features/alarm/presentation/providers/alarm_provider.dart';
 import 'package:trying_flutter/features/prayer/data/repositories/prayer_repository_impl.dart';
 import 'package:trying_flutter/features/prayer/domain/entities/prayer_time.dart';
 import 'package:trying_flutter/features/prayer/domain/repositories/prayer_repository.dart';
@@ -10,9 +11,10 @@ final prayerRepositoryProvider = Provider<PrayerRepository>((ref) {
   return PrayerRepositoryImpl();
 });
 
-// Location Service Provider (Refactored to be a simple provider or Future)
+// Location Service Provider with dependency injection
 final locationServiceProvider = Provider<LocationService>((ref) {
-  return LocationService();
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return LocationService(prefs);
 });
 
 // Timer Provider to tick every minute

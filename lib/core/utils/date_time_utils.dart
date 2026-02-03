@@ -21,4 +21,34 @@ class DateTimeUtils {
     final minutes = time.minute.toString().padLeft(2, '0');
     return '$hours:$minutes';
   }
+
+  /// Format minutes as human-readable string (e.g., "30 min", "1 hr 30 min")
+  static String formatMinutes(int minutes) {
+    if (minutes >= 60) {
+      final hours = minutes ~/ 60;
+      final mins = minutes % 60;
+      if (mins == 0) return '$hours hr';
+      return '$hours hr $mins min';
+    }
+    return '$minutes min';
+  }
+
+  /// Format date as "3 Feb 2026"
+  static String formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
 }

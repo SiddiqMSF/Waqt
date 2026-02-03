@@ -11,6 +11,12 @@ class LocationService {
   static const String _keyLatitude = 'latitude';
   static const String _keyLongitude = 'longitude';
 
+  final SharedPreferences? _prefs;
+
+  /// Creates a LocationService. If [prefs] is provided, it will be used
+  /// instead of fetching a new instance.
+  LocationService([this._prefs]);
+
   /// Request location permission and get current position
   Future<Position?> getCurrentPosition() async {
     // Check if location services are enabled
@@ -57,7 +63,7 @@ class LocationService {
   /// Get cached coordinates or default
   Future<({double latitude, double longitude})> getCachedCoordinates() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
       final lat = prefs.getDouble(_keyLatitude);
       final lng = prefs.getDouble(_keyLongitude);
 
@@ -73,7 +79,7 @@ class LocationService {
 
   Future<void> _saveCoordinates(double latitude, double longitude) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
       await prefs.setDouble(_keyLatitude, latitude);
       await prefs.setDouble(_keyLongitude, longitude);
     } catch (e) {

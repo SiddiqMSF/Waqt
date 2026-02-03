@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:trying_flutter/core/utils/date_time_utils.dart';
 import 'package:trying_flutter/features/alarm/domain/entities/prayer_alarm.dart';
 import 'package:trying_flutter/features/alarm/presentation/providers/alarm_provider.dart';
 import 'package:trying_flutter/features/prayer/presentation/providers/prayer_provider.dart';
@@ -193,7 +194,7 @@ class _AddAlarmSheetState extends ConsumerState<AddAlarmSheet> {
             ..._presetOffsets.map((min) {
               final isSelected = !_useCustomOffset && _offsetMinutes == min;
               return ChoiceChip(
-                label: Text(_formatMinutes(min)),
+                label: Text(DateTimeUtils.formatMinutes(min)),
                 selected: isSelected,
                 onSelected: (selected) {
                   if (selected) {
@@ -224,7 +225,7 @@ class _AddAlarmSheetState extends ConsumerState<AddAlarmSheet> {
           Row(
             children: [
               Text(
-                _formatMinutes(_offsetMinutes),
+                DateTimeUtils.formatMinutes(_offsetMinutes),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -235,7 +236,7 @@ class _AddAlarmSheetState extends ConsumerState<AddAlarmSheet> {
                   min: 1,
                   max: 120,
                   divisions: 119,
-                  label: _formatMinutes(_offsetMinutes),
+                  label: DateTimeUtils.formatMinutes(_offsetMinutes),
                   onChanged: (value) {
                     setState(() => _offsetMinutes = value.round());
                   },
@@ -320,16 +321,6 @@ class _AddAlarmSheetState extends ConsumerState<AddAlarmSheet> {
         ],
       ),
     );
-  }
-
-  String _formatMinutes(int minutes) {
-    if (minutes >= 60) {
-      final hours = minutes ~/ 60;
-      final mins = minutes % 60;
-      if (mins == 0) return '$hours hr';
-      return '$hours hr $mins min';
-    }
-    return '$minutes min';
   }
 
   void _saveAlarm() {

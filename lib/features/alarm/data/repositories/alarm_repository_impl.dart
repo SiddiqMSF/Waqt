@@ -64,9 +64,8 @@ class AlarmRepositoryImpl implements AlarmRepository {
 
   @override
   int generateAlarmId() {
-    // Generate a unique ID based on current timestamp
-    // Using modulo to keep it in a reasonable range
-    return DateTime.now().millisecondsSinceEpoch % 100000;
+    // Generate a unique ID using microseconds and hashCode for uniqueness
+    return DateTime.now().microsecondsSinceEpoch.hashCode.abs();
   }
 
   Future<void> _saveAlarms(List<PrayerAlarm> alarms) async {

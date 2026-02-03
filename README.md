@@ -1,6 +1,6 @@
-# 🕌 Prayer Times – Never Miss Fajr Again
+# 🕌 Waqt – Adaptive Prayer Alarms
 
-**Smart prayer-based alarms that follow the sun, not the clock.**
+**Smart alarms that follow the sun, not the clock.**
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter)](https://flutter.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)

@@ -77,73 +77,87 @@ Future<bool> onIosBackground(ServiceInstance service) async {
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
+  debugPrint('Background Service: onStart started');
+
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
   // Initialize notifications
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const androidSettings = AndroidInitializationSettings('ic_notification');
   const initSettings = InitializationSettings(android: androidSettings);
   await flutterLocalNotificationsPlugin.initialize(initSettings);
+
+  debugPrint('Background Service: Notifications initialized');
 
   // Get cached coordinates
   final locationService = LocationService();
   final coords = await locationService.getCachedCoordinates();
+  debugPrint(
+    'Background Service: Got coordinates: ${coords.latitude}, ${coords.longitude}',
+  );
 
   // Use Repository directly
   final repository = PrayerRepositoryImpl();
 
   // Handle stop command
   service.on('stop').listen((event) {
+    debugPrint('Background Service: Stop command received');
     service.stopSelf();
   });
 
   // Update notification and widget every second
   Timer.periodic(const Duration(seconds: 1), (timer) async {
-    if (service is AndroidServiceInstance) {
-      if (await service.isForegroundService()) {
-        // Repository now has internal caching, so this is efficient
-        final prayers = await repository.getPrayerTimes(
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-        );
-
-        final notification = _buildNotification(prayers, repository);
-
-        await flutterLocalNotificationsPlugin.show(
-          notificationId,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              notificationChannelId,
-              notificationChannelName,
-              channelDescription: notificationChannelDescription,
-              importance: Importance.high,
-              priority: Priority.high,
-              ongoing: true,
-              autoCancel: false,
-              onlyAlertOnce: true,
-              showWhen: false,
-              playSound: false,
-              enableVibration: false,
-              category: AndroidNotificationCategory.service,
-              visibility: NotificationVisibility.public,
-            ),
-          ),
-        );
-
-        // Update Home Widget
-        final now = DateTime.now();
-        final nextPrayer = repository.getNextPrayer(prayers, now);
-        if (nextPrayer != null) {
-          final timeStr = DateTimeUtils.formatTime(nextPrayer.time);
-          await HomeWidgetService.updatePrayerData(
-            nextPrayer.name,
-            timeStr,
-            nextPrayer.time.millisecondsSinceEpoch,
+    try {
+      if (service is AndroidServiceInstance) {
+        if (await service.isForegroundService()) {
+          // Repository now has internal caching, so this is efficient
+          final prayers = await repository.getPrayerTimes(
+            latitude: coords.latitude,
+            longitude: coords.longitude,
           );
+
+          final notification = _buildNotification(prayers, repository);
+
+          await flutterLocalNotificationsPlugin.show(
+            notificationId,
+            notification.title,
+            notification.body,
+            NotificationDetails(
+              android: AndroidNotificationDetails(
+                notificationChannelId,
+                notificationChannelName,
+                channelDescription: notificationChannelDescription,
+                importance: Importance.high,
+                priority: Priority.high,
+                ongoing: true,
+                autoCancel: false,
+                onlyAlertOnce: true,
+                showWhen: false,
+                playSound: false,
+                enableVibration: false,
+                category: AndroidNotificationCategory.service,
+                visibility: NotificationVisibility.public,
+                // Ensure the brand icon is used
+                icon: 'ic_notification',
+              ),
+            ),
+          );
+
+          // Update Home Widget
+          final now = DateTime.now();
+          final nextPrayer = repository.getNextPrayer(prayers, now);
+          if (nextPrayer != null) {
+            final timeStr = DateTimeUtils.formatTime(nextPrayer.time);
+            await HomeWidgetService.updatePrayerData(
+              nextPrayer.name,
+              timeStr,
+              nextPrayer.time.millisecondsSinceEpoch,
+            );
+          }
         }
       }
+    } catch (e) {
+      debugPrint('Background Service: Error in timer loop: $e');
     }
   });
 }

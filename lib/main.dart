@@ -8,7 +8,9 @@ import 'package:trying_flutter/core/services/background_service.dart';
 import 'package:trying_flutter/core/theme/app_theme.dart';
 import 'package:trying_flutter/features/alarm/data/services/alarm_service.dart';
 import 'package:trying_flutter/features/alarm/presentation/providers/alarm_provider.dart';
+import 'package:trying_flutter/features/alarm/presentation/screens/alarm_ring_screen.dart';
 import 'package:trying_flutter/features/prayer/presentation/screens/home_screen.dart';
+import 'package:alarm/alarm.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,12 +39,25 @@ class PrayerTimesApp extends StatefulWidget {
 }
 
 class _PrayerTimesAppState extends State<PrayerTimesApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _initialize();
+    _listenToAlarmRing();
+  }
+
+  void _listenToAlarmRing() {
+    Alarm.ringStream.stream.listen((alarmSettings) {
+      debugPrint('Alarm ringing: ${alarmSettings.id}');
+      _navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (context) => AlarmRingScreen(alarmSettings: alarmSettings),
+        ),
+      );
+    });
   }
 
   Future<void> _initialize() async {
@@ -87,6 +102,7 @@ class _PrayerTimesAppState extends State<PrayerTimesApp> {
     }
 
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'Prayer Times',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,

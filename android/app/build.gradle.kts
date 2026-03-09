@@ -32,10 +32,22 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
-            storePassword = keystoreProperties["storePassword"] as String?
+            val keyAliasVar = System.getenv("KEY_ALIAS")
+            val keyPasswordVar = System.getenv("KEY_PASSWORD")
+            val storePasswordVar = System.getenv("STORE_PASSWORD")
+            val keystorePathVar = System.getenv("KEYSTORE_PATH")
+
+            if (keyAliasVar != null) {
+                keyAlias = keyAliasVar
+                keyPassword = keyPasswordVar
+                storeFile = file(keystorePathVar)
+                storePassword = storePasswordVar
+            } else {
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+                storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
+                storePassword = keystoreProperties["storePassword"] as String?
+            }
         }
     }
 

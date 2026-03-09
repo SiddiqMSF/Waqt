@@ -16,7 +16,7 @@ class AppTheme {
         brightness: Brightness.light,
         dynamicSchemeVariant: DynamicSchemeVariant.vibrant,
       ),
-      textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+      textTheme: GoogleFonts.openSansTextTheme(ThemeData.light().textTheme),
       visualDensity: VisualDensity.adaptivePlatformDensity,
     );
   }
@@ -29,7 +29,7 @@ class AppTheme {
         brightness: Brightness.dark,
         dynamicSchemeVariant: DynamicSchemeVariant.vibrant,
       ),
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+      textTheme: GoogleFonts.openSansTextTheme(ThemeData.dark().textTheme),
       visualDensity: VisualDensity.adaptivePlatformDensity,
     );
   }
